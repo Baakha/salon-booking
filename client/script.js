@@ -1,7 +1,7 @@
 // client/script.js
 
 // Адрес нашего Node.js сервера (если на реальном сервере — замени localhost на IP или домен)
-const API_URL = "http://localhost:3000/api";
+const API_URL = "https://salon-booking-ycq5.onrender.com";
 
 let selTime = null;
 
