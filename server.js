@@ -2,14 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { Sequelize, DataTypes } = require('sequelize');
-const path = require('path'); // Добавили модуль для работы с путями
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
+
+// Мидлвары
 app.use(cors());
 app.use(bodyParser.json());
 
-// 1. НАСТРОЙКА ПОДКЛЮЧЕНИЯ К БАЗЕ (NEON.TECH)
+// 1. ПОДКЛЮЧЕНИЕ К БАЗЕ
 const sequelize = new Sequelize(
     process.env.DB_NAME, 
     process.env.DB_USER, 
@@ -28,7 +30,7 @@ const sequelize = new Sequelize(
     }
 );
 
-// 2. ОПИСАНИЕ МОДЕЛИ ЗАПИСЕЙ
+// 2. МОДЕЛЬ
 const Appointment = sequelize.define('Appointment', {
     name: { type: DataTypes.STRING, allowNull: false },
     phone: { type: DataTypes.STRING, allowNull: false },
@@ -41,13 +43,8 @@ const Appointment = sequelize.define('Appointment', {
     indexes: [{ unique: true, fields: ['date', 'master', 'time'] }]
 });
 
-// 3. ОБСЛУЖИВАНИЕ СТАТИЧЕСКИХ ФАЙЛОВ (ФРОНТЕНД)
-// Это заставит Render показывать твой index.html по прямой ссылке
-app.use(express.static(path.join(__dirname, 'client')));
+// 3. API МАРШРУТЫ (должны быть ПЕРВЫМИ)
 
-// 4. API МАРШРУТЫ
-
-// Получить занятые слоты
 app.get('/api/busy-slots', async (req, res) => {
     const { date, master } = req.query;
     try {
@@ -62,7 +59,6 @@ app.get('/api/busy-slots', async (req, res) => {
     }
 });
 
-// Создать новую запись
 app.post('/api/book', async (req, res) => {
     try {
         const { name, phone, date, time, master, service, price } = req.body;
@@ -78,7 +74,6 @@ app.post('/api/book', async (req, res) => {
     }
 });
 
-// Получить все записи (для Админки)
 app.get('/api/admin/appointments', async (req, res) => {
     try {
         const all = await Appointment.findAll({ order: [['date', 'DESC'], ['time', 'ASC']] });
@@ -88,21 +83,26 @@ app.get('/api/admin/appointments', async (req, res) => {
     }
 });
 
-// Перенаправление всех остальных запросов на index.html (для SPA навигации)
-app.get('*', (req, res) => {
+// 4. СТАТИКА (ФРОНТЕНД)
+
+// Раздаем статические файлы из папки client
+app.use(express.static(path.join(__dirname, 'client')));
+
+// Вместо звездочки используем конкретный обработчик для всех остальных путей
+app.get(/^(?!\/api).+/, (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
 
-// 5. ЗАПУСК СЕРВЕРА
+// 5. ЗАПУСК
 const PORT = process.env.PORT || 3000;
 
 sequelize.sync()
     .then(() => {
-        console.log('✅ База данных подключена и синхронизирована');
+        console.log('✅ База данных подключена');
         app.listen(PORT, () => {
-            console.log(`🚀 Сервер запущен на порту ${PORT}`);
+            console.log(`🚀 Сервер на порту ${PORT}`);
         });
     })
     .catch(err => {
-        console.error('❌ Ошибка синхронизации БД:', err);
+        console.error('❌ Ошибка БД:', err);
     });
