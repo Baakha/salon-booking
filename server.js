@@ -1,8 +1,8 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { Sequelize, DataTypes } = require('sequelize');
+const path = require('path'); // Добавили модуль для работы с путями
 require('dotenv').config();
 
 const app = express();
@@ -28,23 +28,26 @@ const sequelize = new Sequelize(
     }
 );
 
-// 2. ОПИСАНИЕ МОДЕЛИ (ТАБЛИЦЫ) ЗАПИСЕЙ
+// 2. ОПИСАНИЕ МОДЕЛИ ЗАПИСЕЙ
 const Appointment = sequelize.define('Appointment', {
     name: { type: DataTypes.STRING, allowNull: false },
     phone: { type: DataTypes.STRING, allowNull: false },
-    date: { type: DataTypes.DATEONLY, allowNull: false }, // ГГГГ-ММ-ДД
-    time: { type: DataTypes.STRING, allowNull: false },     // ЧЧ:ММ
+    date: { type: DataTypes.DATEONLY, allowNull: false },
+    time: { type: DataTypes.STRING, allowNull: false },
     master: { type: DataTypes.STRING, allowNull: false },
     service: { type: DataTypes.STRING },
     price: { type: DataTypes.INTEGER, defaultValue: 0 },
 }, {
-    // Индекс для защиты от двойной записи на одно время к одному мастеру
     indexes: [{ unique: true, fields: ['date', 'master', 'time'] }]
 });
 
-// 3. API МАРШРУТЫ
+// 3. ОБСЛУЖИВАНИЕ СТАТИЧЕСКИХ ФАЙЛОВ (ФРОНТЕНД)
+// Это заставит Render показывать твой index.html по прямой ссылке
+app.use(express.static(path.join(__dirname, 'client')));
 
-// Получить занятые слоты для календаря
+// 4. API МАРШРУТЫ
+
+// Получить занятые слоты
 app.get('/api/busy-slots', async (req, res) => {
     const { date, master } = req.query;
     try {
@@ -85,14 +88,19 @@ app.get('/api/admin/appointments', async (req, res) => {
     }
 });
 
-// 4. ЗАПУСК СЕРВЕРА И СИНХРОНИЗАЦИЯ БАЗЫ
+// Перенаправление всех остальных запросов на index.html (для SPA навигации)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client', 'index.html'));
+});
+
+// 5. ЗАПУСК СЕРВЕРА
 const PORT = process.env.PORT || 3000;
 
-sequelize.sync() // Создаст таблицу в Neon, если её еще нет
+sequelize.sync()
     .then(() => {
         console.log('✅ База данных подключена и синхронизирована');
         app.listen(PORT, () => {
-            console.log(`🚀 Сервер запущен на ${PORT}`);
+            console.log(`🚀 Сервер запущен на порту ${PORT}`);
         });
     })
     .catch(err => {
